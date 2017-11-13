@@ -167,7 +167,6 @@ class RouteApp(app_manager.RyuApp):
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
         self.logger.info('%s', ev)
-	
 	    switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]

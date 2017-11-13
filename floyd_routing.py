@@ -124,16 +124,16 @@ class RouteApp(app_manager.RyuApp):
                         graph, weight='weight')
                 a = path[src][dst]
                 rute.append(dst)
-                    while (src != a):
-                        rute.append(a)
-                        b = path[src][a]
-                        a = b
+                while (src != a):
+                    rute.append(a)
+                    b = path[src][a]
+                    a = b
 
-                    rute.append(src)
-                    rute.reverse()
-                    paths = rute
+                rute.append(src)
+                rute.reverse()
+                paths = rute
                     #print("Time", time.time() - start_time2)
-                    return paths
+                return paths
 
         return None
 
@@ -293,40 +293,40 @@ class RouteApp(app_manager.RyuApp):
                 
                 if dst in self.mymac.keys():
                 
-                if dst in self.mac_to_port[dpid]:
-                    
-                    self.logger.info('-------------------------------------------------------------------------------')
-                    self.logger.info(
-                        'installing path from {} to {}'.format(src, dst))
-                    
-                    dst_host = self.find_host(dst)
-                    src_host = self.find_host(src)
-                    
+                    if dst in self.mac_to_port[dpid]:
+                        
+                        self.logger.info('-------------------------------------------------------------------------------')
+                        self.logger.info(
+                            'installing path from {} to {}'.format(src, dst))
+                        
+                        dst_host = self.find_host(dst)
+                        src_host = self.find_host(src)
+                        
 
-                    # calculate shortest path
-                    shortest_path = self.cal_shortest_path(src_host, dst_host)
-                    
+                        # calculate shortest path
+                        shortest_path = self.cal_shortest_path(src_host, dst_host)
+                        
 
-                    self.logger.info('Floyd-Warshall Algorithm : ')
-                    self.logger.info(shortest_path)
-                    self.logger.info('')
+                        self.logger.info('Floyd-Warshall Algorithm : ')
+                        self.logger.info(shortest_path)
+                        self.logger.info('')
 
-                    self.install_path(parser, src_ip, dst_ip, shortest_path[1::2])
+                        self.install_path(parser, src_ip, dst_ip, shortest_path[1::2])
 
-                    # create reverse path
-                    reverse_path = list(reversed(shortest_path))
-                    self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
-                    self.logger.info(reverse_path)
-                    # packet out this packet
-                    node = shortest_path[1]
-                    dpid = int(node.split('.')[0])
-                    out_port = int(node.split('.')[1])
-                    
+                        # create reverse path
+                        reverse_path = list(reversed(shortest_path))
+                        self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
+                        self.logger.info(reverse_path)
+                        # packet out this packet
+                        node = shortest_path[1]
+                        dpid = int(node.split('.')[0])
+                        out_port = int(node.split('.')[1])
+                        
 
-                    
-                    print("Time", time.time() - start_time2)
-                    self.logger.info('-------------------------------------------------------------------------------')
-                    indikator+=1
+                        
+                        print("Time", time.time() - start_time2)
+                        self.logger.info('-------------------------------------------------------------------------------')
+                        indikator+=1
                     
                     
         actions = [parser.OFPActionOutput(out_port)]
