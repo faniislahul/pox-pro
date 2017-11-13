@@ -21,9 +21,9 @@ HARD_TIMEOUT = 0    # infinity
 LOAD_BALANCER_IP = IPAddr('10.0.0.1')    # '10.0.0.254'
 LOAD_BALANCER_MAC = EthAddr('00:00:00:00:00:01')    # '00:00:00:00:00:FE'
 
-class LoadBalancer (EventMixin):    # 事件驱动
+class LoadBalancer (EventMixin):    # 
 
-  class Server:    # 一个内置类
+  class Server:    # 
     def __init__ (self, ip, mac, port):
       self.ip = IPAddr(ip)    # set the ip address
       self.mac = EthAddr(mac)    # set the mac address
@@ -32,16 +32,16 @@ class LoadBalancer (EventMixin):    # 事件驱动
     def __str__(self):
       return','.join([str(self.ip), str(self.mac), str(self.port)])
 
-  def __init__ (self, connection):    # 默认属性
+  def __init__ (self, connection):    # 
     self.connection = connection
     self.listenTo(connection)
     # Initialize the server list
     self.servers = [
       self.Server('10.0.0.1', '00:00:00:00:00:01', 1),
-      self.Server('10.0.0.2', '00:00:00:00:00:02', 2)]    # server 列表
+      self.Server('10.0.0.2', '00:00:00:00:00:02', 2)]    # server 
     self.last_server = 0
 
-  def get_next_server (self):    # 流量平均匹配算法
+  def get_next_server (self):    #
     # Round-robin load the servers
     self.last_server = (self.last_server + 1) % len(self.servers)
     return self.servers[self.last_server]
@@ -130,8 +130,7 @@ class LoadBalancer (EventMixin):    # 事件驱动
 
     log.info("Installing %s <-> %s" % (packet.next.srcip, server.ip))
 
-  def _handle_PacketIn (self, event):    # function No.4 内部函数
-    packet = event.parse()
+  def _handle_PacketIn (self, event):    # function No.4 
 
     if packet.type == packet.LLDP_TYPE or packet.type == packet.IPV6_TYPE:
       # Drop LLDP packets 
@@ -176,4 +175,4 @@ class load_balancer (EventMixin):    # my component
 
 def launch ():    # registering component
   # Start load balancer
-  core.registerNew(load_balancer)    # 注册 load_balancer 类
+  core.registerNew(load_balancer)    # load_balancer 

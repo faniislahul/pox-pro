@@ -99,8 +99,12 @@ class iplb (object):
     self.con = connection
     self.mac = self.con.eth_addr
     self.live_servers = {} # IP -> MAC,port
+
+    #dictionary untuk menyimpan response time dari server yang aktif
     self.server_response_time = {}
+    #counter untuk mengetahui sequence number dari probe yang dikirim
     self.counter = 0
+    #membuka file log
     self.resource_log = open('response_time_log.txt','wb')
 
     try:
@@ -128,9 +132,10 @@ class iplb (object):
     # As part of a gross hack, we now do this from elsewhere
     #self.con.addListeners(self)
   
+  #method untuk menulis ke file log
   def _do_write(self):
     for(ip,time) in self.server_response_time.items():
-	self.resource_log.write("[SEQ] "+self.counter.__str__()+" [IP] "+ip.__str__()+" [RT] "+time.__str__()+"\n")
+	    self.resource_log.write("[SEQ] "+self.counter.__str__()+" [IP] "+ip.__str__()+" [RT] "+time.__str__()+"\n")
   
   def _do_expire (self):
     """
@@ -160,9 +165,14 @@ class iplb (object):
     """
     Send an ARP to a server to see if it's still up
     """
-    self.counter = self.counter+1
-#    self.log.debug("sending probe number %d",self.counter)
+    #menulis response time dari masing-masing server sebelum mengirim probe baru
     self._do_write()
+
+    #menambah counter setiap pengiriminan probe baru
+    self.counter = self.counter+1
+    
+    
+    #menghapus server dari outstanding probe, juga untuk mengecek apakah server timeout
     self._do_expire()
 
     server = self.servers.pop(0)
@@ -200,6 +210,7 @@ class iplb (object):
     r = max(.25, r) # Cap it at four per second
     return r
 
+  #method untuk memilih server baru berdasarkan response time terkecil
   def _pick_server (self, key, inport):
     """
     Pick a server for a (hopefully) new connection
@@ -233,8 +244,10 @@ class iplb (object):
         if arpp.opcode == arpp.REPLY:
           if arpp.protosrc in self.outstanding_probes:
             # A server is (still?) up; cool.
-	    #self.log.debug("we got response from %s",arpp.protosrc.__str__())
-	    #self.log.debug("response time %.10f",()
+
+            #bila server membalas probe yang dikirim conroller, controller akan mencatat waktu datangnay probe dikurangi
+            #waktu pengirimian, hasilnya adalah response time yang kemudian ditampung. Apabila server timeout, maka 
+            #response time tidak akan dicatat. hasilanya server tidak akan dipilih.
             self.server_response_time[arpp.protosrc] = arrive_time-(self.outstanding_probes[arpp.protosrc]-self.arp_timeout) 
 	    del self.outstanding_probes[arpp.protosrc]
             if (self.live_servers.get(arpp.protosrc, (None,None))
@@ -300,7 +313,7 @@ class iplb (object):
           self.log.warn("No servers!")
           return drop()
 
-        # Pick a server for this flow
+        # memilih server berdasarkan response time terkecil
         server = self._pick_server(key, inport)
         self.log.debug("Directing traffic to %s", server)
         entry = MemoryEntry(server, packet, inport)
