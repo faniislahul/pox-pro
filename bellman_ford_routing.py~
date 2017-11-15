@@ -84,11 +84,8 @@ class RouteApp(app_manager.RyuApp):
         # internal switch links
         all_switches = ryu_api.get_all_switch(self)
         link_to_add = []
-	#self.logger.info(all_switches)
         for switch in all_switches:
             ports = switch.ports
-	    #self.logger.info("[ports]")
-	    #self.logger.info(ports)
             for port in ports:
                 for _port in ports:
                     if port != _port:
@@ -97,7 +94,6 @@ class RouteApp(app_manager.RyuApp):
                         link_to_add.append((src, dst, {'weight': 1}))
 
         result.extend(link_to_add)
-	#self.logger.info(result)
         return result
 
     def cal_shortest_path(self, src_host, dst_host):
@@ -105,9 +101,9 @@ class RouteApp(app_manager.RyuApp):
         dst_port = dst_host.port
 	
         all_links = self.get_all_links()
-	self.logger.info("[all link]")
-	self.logger.info(all_links)
-	self.logger.info('')
+	    self.logger.info("[all link]")
+	    self.logger.info(all_links)
+	    self.logger.info('')
 
 
         graph = nx.Graph()
@@ -117,10 +113,10 @@ class RouteApp(app_manager.RyuApp):
 
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-	self.logger.info("[src]{} [dst]{}".format(src,dst))        
-	rute = []
-	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
-	
+	    self.logger.info("[src]{} [dst]{}".format(src,dst))        
+	    rute = []
+
+	    self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
 	
             # Bellman Ford Algorithm
@@ -130,9 +126,10 @@ class RouteApp(app_manager.RyuApp):
                 start_time2 = time.time()
                 indikator2+=1
                 
+                #Menghitung jarak terpendek dengan menggunakan networkx
                 path = nx.bellman_ford_path(
                         graph,src, dst, weight='weight' )
-                # print("Time", time.time() - start_time2)
+
                 return path
 
         return None
@@ -245,8 +242,6 @@ class RouteApp(app_manager.RyuApp):
 
         start_time = time.time()
         
-        
-
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -299,12 +294,11 @@ class RouteApp(app_manager.RyuApp):
 		            
 		            dst_host = self.find_host(dst)
 		            src_host = self.find_host(src)
-		            
 
 		            # calculate shortest path
 		            shortest_path = self.cal_shortest_path(src_host, dst_host)
 
-		            self.logger.info('Dijkstra Algorithm : ')
+		            self.logger.info('Belman Ford Algorithm : ')
 		            self.logger.info(shortest_path)
 		            self.logger.info('')
 
@@ -314,13 +308,12 @@ class RouteApp(app_manager.RyuApp):
 		            reverse_path = list(reversed(shortest_path))
 		            self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
 		            self.logger.info(reverse_path)
-		            # packet out this packet
+		            
+                    # packet out this packet
 		            node = shortest_path[1]
 		            dpid = int(node.split('.')[0])
 		            out_port = int(node.split('.')[1])
-		            
-
-		            
+		               
 		            print("Time", time.time() - start_time2)
 		            self.logger.info('-------------------------------------------------------------------------------')
 		            indikator+=1

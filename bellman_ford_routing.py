@@ -101,9 +101,9 @@ class RouteApp(app_manager.RyuApp):
         dst_port = dst_host.port
 	
         all_links = self.get_all_links()
-	    self.logger.info("[all link]")
-	    self.logger.info(all_links)
-	    self.logger.info('')
+	self.logger.info("[all link]")
+	self.logger.info(all_links)
+	self.logger.info('')
 
 
         graph = nx.Graph()
@@ -113,10 +113,10 @@ class RouteApp(app_manager.RyuApp):
 
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-	    self.logger.info("[src]{} [dst]{}".format(src,dst))        
-	    rute = []
+	self.logger.info("[src]{} [dst]{}".format(src,dst))        
+	rute = []
 
-	    self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
+	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
 	
             # Bellman Ford Algorithm
