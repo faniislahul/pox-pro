@@ -36,7 +36,6 @@ class RouteApp(app_manager.RyuApp):
     def add_flow(self, datapath, match, actions, priority=1, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
-
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
         if buffer_id:
@@ -75,20 +74,21 @@ class RouteApp(app_manager.RyuApp):
 
         all_links = ryu_api.get_all_link(self)
         result = []
-
         for link in all_links:
+	    
             src = '{}.{}'.format(link.src.dpid, link.src.port_no)
             dst = '{}.{}'.format(link.dst.dpid, link.dst.port_no)
             result.append(
-                (src, dst, {'weight': self.getMetrics(link.src.dpid, link.dst.dpid)}))
+                (src, dst, {'weight': randint(0,4)}))
 
         # internal switch links
         all_switches = ryu_api.get_all_switch(self)
         link_to_add = []
-
+	#self.logger.info(all_switches)
         for switch in all_switches:
             ports = switch.ports
-
+	    #self.logger.info("[ports]")
+	    #self.logger.info(ports)
             for port in ports:
                 for _port in ports:
                     if port != _port:
@@ -97,21 +97,34 @@ class RouteApp(app_manager.RyuApp):
                         link_to_add.append((src, dst, {'weight': 1}))
 
         result.extend(link_to_add)
+	#self.logger.info(result)
         return result
 
     def cal_shortest_path(self, src_host, dst_host):
         src_port = src_host.port
         dst_port = dst_host.port
-
+	
         all_links = self.get_all_links()
+	self.logger.info("[all link]")
+	self.logger.info(all_links)
+	self.logger.info('')
+
 
         graph = nx.Graph()
         graph.add_edges_from(all_links)
+	
+
 
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-        rute = []
+	self.logger.info("[src]{} [dst]{}".format(src,dst))        
+	rute = []
+	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
+	pathx = nx.dijkstra_path(
+                        graph,'5.1','2.1')
+	self.logger.info(pathx)
         if nx.has_path(graph, src, dst):
+	
             # Dijkstra Algorithm
             if indikator2 ==1:
                 global indikator2
@@ -167,7 +180,7 @@ class RouteApp(app_manager.RyuApp):
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
         self.logger.info('%s', ev)
-	    switches = ryu_api.get_all_switch(self)
+	switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
@@ -230,7 +243,6 @@ class RouteApp(app_manager.RyuApp):
 	
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    
     def _packet_in_handler(self, ev):
 
         start_time = time.time()
@@ -281,39 +293,39 @@ class RouteApp(app_manager.RyuApp):
                 
                 if dst in self.mymac.keys():
                 
-                if dst in self.mac_to_port[dpid]:
-                
-                    self.logger.info('-------------------------------------------------------------------------------')
-                    self.logger.info(
-                        'installing path from {} to {}'.format(src, dst))
-                    
-                    dst_host = self.find_host(dst)
-                    src_host = self.find_host(src)
-                    
+		        if dst in self.mac_to_port[dpid]:
+		        
+		            self.logger.info('-------------------------------------------------------------------------------')
+		            self.logger.info(
+		                'installing path from {} to {}'.format(src, dst))
+		            
+		            dst_host = self.find_host(dst)
+		            src_host = self.find_host(src)
+		            
 
-                    # calculate shortest path
-                    shortest_path = self.cal_shortest_path(src_host, dst_host)
+		            # calculate shortest path
+		            shortest_path = self.cal_shortest_path(src_host, dst_host)
 
-                    self.logger.info('Dijkstra Algorithm : ')
-                    self.logger.info(shortest_path)
-                    self.logger.info('')
+		            self.logger.info('Dijkstra Algorithm : ')
+		            self.logger.info(shortest_path)
+		            self.logger.info('')
 
-                    self.install_path(parser, src_ip, dst_ip, shortest_path[1::2])
+		            self.install_path(parser, src_ip, dst_ip, shortest_path[1::2])
 
-                    # create reverse path
-                    reverse_path = list(reversed(shortest_path))
-                    self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
-                    self.logger.info(reverse_path)
-                    # packet out this packet
-                    node = shortest_path[1]
-                    dpid = int(node.split('.')[0])
-                    out_port = int(node.split('.')[1])
-                    
+		            # create reverse path
+		            reverse_path = list(reversed(shortest_path))
+		            self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
+		            self.logger.info(reverse_path)
+		            # packet out this packet
+		            node = shortest_path[1]
+		            dpid = int(node.split('.')[0])
+		            out_port = int(node.split('.')[1])
+		            
 
-                    
-                    print("Time", time.time() - start_time2)
-                    self.logger.info('-------------------------------------------------------------------------------')
-                    indikator+=1
+		            
+		            print("Time", time.time() - start_time2)
+		            self.logger.info('-------------------------------------------------------------------------------')
+		            indikator+=1
                     
                     
         actions = [parser.OFPActionOutput(out_port)]
