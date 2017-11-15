@@ -33,6 +33,7 @@ class RouteApp(app_manager.RyuApp):
         self.thread = {}
         self.thread['update'] = hub.spawn_after(11, self._stat_request)
 
+     # method untuk menambahkan flow 
     def add_flow(self, datapath, match, actions, priority=1, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -47,6 +48,7 @@ class RouteApp(app_manager.RyuApp):
                                     match=match, instructions=inst)
         datapath.send_msg(mod)
 
+    #method untuk mencari host
     def find_host(self, mac_addr):
         hosts = ryu_api.get_all_host(self)
         for host in hosts:
@@ -54,7 +56,7 @@ class RouteApp(app_manager.RyuApp):
                 return host
 
         return None
-
+    #method untuk melakukan flooding apabila host yang dituju tidak diketahui 
     def flood_packet(self, dp, msg):
         ofproto = dp.ofproto
         out_port = ofproto.OFPP_FLOOD
@@ -69,9 +71,10 @@ class RouteApp(app_manager.RyuApp):
             actions=actions, data=data)
         dp.send_msg(out)
 
-
+    #method untuk mendapatkan seluruh link yang ada di dalam topologi
     def get_all_links(self):
 
+        #menggunakan modul dari ryu untuk mendapatkan link atara setiap node
         all_links = ryu_api.get_all_link(self)
         result = []
         for link in all_links:
@@ -81,14 +84,13 @@ class RouteApp(app_manager.RyuApp):
             result.append(
                 (src, dst, {'weight': randint(0,4)}))
 
-        # internal switch links
+        ##membuat link berdasarkan port dan datapath dari switch
         all_switches = ryu_api.get_all_switch(self)
         link_to_add = []
-	#self.logger.info(all_switches)
+	    
         for switch in all_switches:
             ports = switch.ports
-	    #self.logger.info("[ports]")
-	    #self.logger.info(ports)
+	    
             for port in ports:
                 for _port in ports:
                     if port != _port:
@@ -96,20 +98,22 @@ class RouteApp(app_manager.RyuApp):
                         dst = '{}.{}'.format(_port.dpid, _port.port_no)
                         link_to_add.append((src, dst, {'weight': 1}))
 
+        #link antar node dan internal switch kemudian dikombinasikan
         result.extend(link_to_add)
-	#self.logger.info(result)
+	
         return result
-
+    
+    #method untuk menghitung jarak terpendek
     def cal_shortest_path(self, src_host, dst_host):
         src_port = src_host.port
         dst_port = dst_host.port
 	
         all_links = self.get_all_links()
-	self.logger.info("[all link]")
-	self.logger.info(all_links)
-	self.logger.info('')
+	    self.logger.info("[all link]")
+	    self.logger.info(all_links)
+	    self.logger.info('')
 
-
+        #Graph dari seluruh link dibuat
         graph = nx.Graph()
         graph.add_edges_from(all_links)
 	
@@ -117,21 +121,20 @@ class RouteApp(app_manager.RyuApp):
 
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-	self.logger.info("[src]{} [dst]{}".format(src,dst))        
-	rute = []
-	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
-	pathx = nx.dijkstra_path(
-                        graph,'5.1','2.1')
-	self.logger.info(pathx)
+	    self.logger.info("[src]{} [dst]{}".format(src,dst))        
+	    rute = []
+
+	    self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
 	
-            # Dijkstra Algorithm
+            # Floyd Warshall Algorithm
             if indikator2 ==1:
                 global indikator2
                 global start_time2
                 start_time2 = time.time()
                 indikator2+=1
                 
+                #mengambil path terpendek dengan menggunakan modul networkx
                 path, dist = nx.floyd_warshall_predecessor_and_distance(
                         graph, weight='weight')
                 a = path[src][dst]
@@ -144,15 +147,18 @@ class RouteApp(app_manager.RyuApp):
                 rute.append(src)
                 rute.reverse()
                 paths = rute
-                # print("Time", time.time() - start_time2)
+
+                #mengembalikan jalur terpendek
                 return paths
 
         return None
 
+    #method untuk mendapatkan datapath
     def get_dp(self, dpid):
         switch = ryu_api.get_switch(self, dpid)[0]
         return switch.dp
 
+    #method untuk mengirimkan packet out
     def packet_out(self, dp, msg, out_port):
         ofproto = dp.ofproto
         actions = [dp.ofproto_parser.OFPActionOutput(out_port)]
@@ -166,6 +172,7 @@ class RouteApp(app_manager.RyuApp):
             actions=actions, data=data)
         dp.send_msg(out)
 
+    #method untuk menginstall jalur berdasarkan jalur yang sudah dicari
     def install_path(self, parser, src_ip, dst_ip, path):
         match_ip = parser.OFPMatch(
             eth_type=ether_types.ETH_TYPE_IP,
@@ -251,14 +258,12 @@ class RouteApp(app_manager.RyuApp):
         datapath = ev.msg.datapath
         self.install_controller(datapath)
 	
-    
+    #method yang dipanggil ketika packet_in 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
 
         start_time = time.time()
         
-        
-
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -316,7 +321,7 @@ class RouteApp(app_manager.RyuApp):
 		            # calculate shortest path
 		            shortest_path = self.cal_shortest_path(src_host, dst_host)
 
-		            self.logger.info('Floyd Warshall : ')
+		            self.logger.info('Floyd Warshall Algorithm: ')
 		            self.logger.info(shortest_path)
 		            self.logger.info('')
 
@@ -326,6 +331,7 @@ class RouteApp(app_manager.RyuApp):
 		            reverse_path = list(reversed(shortest_path))
 		            self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
 		            self.logger.info(reverse_path)
+
 		            # packet out this packet
 		            node = shortest_path[1]
 		            dpid = int(node.split('.')[0])

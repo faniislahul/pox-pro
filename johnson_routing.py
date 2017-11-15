@@ -80,12 +80,14 @@ class RouteApp(app_manager.RyuApp):
             src = '{}.{}'.format(link.src.dpid, link.src.port_no)
             dst = '{}.{}'.format(link.dst.dpid, link.dst.port_no)
             result.append(
+
+                #weight diisi random 0-4
                 (src, dst, randint(0,4)))
 
         # internal switch links
         all_switches = ryu_api.get_all_switch(self)
         link_to_add = []
-	#self.logger.info(all_switches)
+	    #self.logger.info(all_switches)
         for switch in all_switches:
             ports = switch.ports
 	    #self.logger.info("[ports]")
@@ -98,7 +100,7 @@ class RouteApp(app_manager.RyuApp):
                         link_to_add.append((src, dst, 1))
 
         result.extend(link_to_add)
-	#self.logger.info(result)
+	    #self.logger.info(result)
         return result
 
     def cal_shortest_path(self, src_host, dst_host):
@@ -106,43 +108,36 @@ class RouteApp(app_manager.RyuApp):
         dst_port = dst_host.port
 	
         all_links = self.get_all_links()
-	self.logger.info("[all link]")
-	self.logger.info(all_links)
-	self.logger.info('')
-
+	    self.logger.info("[all link]")
+	    self.logger.info(all_links)
+	    self.logger.info('')
 
         graph = nx.Graph()
         graph.add_weighted_edges_from(all_links)	
-	gx = nx.Graph()
-	gx.add_weighted_edges_from(all_links)
 	
-
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-	self.logger.info("[src]{} [dst]{}".format(src,dst))        
-	rute = []
-	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
-	
+	    self.logger.info("[src]{} [dst]{}".format(src,dst))        
+	    rute = []
+
+	    self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
-	    ptx = nx.johnson(gx, weight='weight')
-	    self.logger.info(ptx['5.1']['1.1'])
-            # Bellman Ford Algorithm
-	    #isCalc=1
+            
+            # Johnson Algorithm
             if isCalc == 1:
                 global isCalc
                 global start_time2
                 start_time2 = time.time()
                 isCalc+=1
                 
+                #kalkulasi dengan menggunakan netwokx
                 path = nx.johnson(
                         graph, weight='weight')
                 
-                # print("Time", time.time() - start_time2)
-		#self.logger.info(path)
-		#sys.exit()
+                #mengambil jarak terpendek dari src ke dst
                 return path[src][dst]
 
-        return ptx[src][dst]
+        return None
 
     def get_dp(self, dpid):
         switch = ryu_api.get_switch(self, dpid)[0]
@@ -252,8 +247,6 @@ class RouteApp(app_manager.RyuApp):
 
         start_time = time.time()
         
-        
-
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
