@@ -19,11 +19,13 @@ from ryu.topology.event import EventLinkAdd, EventLinkDelete
 import networkx as nx
 import pause
 import time
-indikator =1
-indikator2 =1
+indikator = 1
+isCalc = 1
 start_time2 = time.time()
+
+
 class RouteApp(app_manager.RyuApp):
-    
+
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
@@ -33,7 +35,7 @@ class RouteApp(app_manager.RyuApp):
         self.thread = {}
         self.thread['update'] = hub.spawn_after(11, self._stat_request)
 
-     # method untuk menambahkan flow 
+     # method untuk menambahkan flow
     def add_flow(self, datapath, match, actions, priority=1, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -48,7 +50,7 @@ class RouteApp(app_manager.RyuApp):
                                     match=match, instructions=inst)
         datapath.send_msg(mod)
 
-    #method untuk mencari host
+    # method untuk mencari host
     def find_host(self, mac_addr):
         hosts = ryu_api.get_all_host(self)
         for host in hosts:
@@ -56,7 +58,8 @@ class RouteApp(app_manager.RyuApp):
                 return host
 
         return None
-    #method untuk melakukan flooding apabila host yang dituju tidak diketahui 
+    # method untuk melakukan flooding apabila host yang dituju tidak diketahui
+
     def flood_packet(self, dp, msg):
         ofproto = dp.ofproto
         out_port = ofproto.OFPP_FLOOD
@@ -71,72 +74,72 @@ class RouteApp(app_manager.RyuApp):
             actions=actions, data=data)
         dp.send_msg(out)
 
-    #method untuk mendapatkan seluruh link yang ada di dalam topologi
+    # method untuk mendapatkan seluruh link yang ada di dalam topologi
     def get_all_links(self):
 
-        #menggunakan modul dari ryu untuk mendapatkan link atara setiap node
+        # menggunakan modul dari ryu untuk mendapatkan link atara setiap node
         all_links = ryu_api.get_all_link(self)
         result = []
         for link in all_links:
-	    
+
             src = '{}.{}'.format(link.src.dpid, link.src.port_no)
             dst = '{}.{}'.format(link.dst.dpid, link.dst.port_no)
             result.append(
-                (src, dst, {'weight': randint(0,4)}))
+                # mengisi weight dari setiap link dengan 1
+                (src, dst, {'weight': 1}))
 
-        ##membuat link berdasarkan port dan datapath dari switch
+        # membuat link berdasarkan port dan datapath dari switch
         all_switches = ryu_api.get_all_switch(self)
         link_to_add = []
-	    
+
         for switch in all_switches:
             ports = switch.ports
-	    
+
             for port in ports:
                 for _port in ports:
                     if port != _port:
                         src = '{}.{}'.format(port.dpid, port.port_no)
                         dst = '{}.{}'.format(_port.dpid, _port.port_no)
-                        link_to_add.append((src, dst, {'weight': 1}))
+                        # mengisi weight untuk internal link switch dengan 0
+                        link_to_add.append((src, dst, {'weight': 0}))
 
-        #link antar node dan internal switch kemudian dikombinasikan
+        # link antar node dan internal switch kemudian dikombinasikan
         result.extend(link_to_add)
-	
+
         return result
-    
-    #method untuk menghitung jarak terpendek
+
+    # method untuk menghitung jarak terpendek
     def cal_shortest_path(self, src_host, dst_host):
         src_port = src_host.port
         dst_port = dst_host.port
-	
-        all_links = self.get_all_links()
-	self.logger.info("[all link]")
-	self.logger.info(all_links)
-	self.logger.info('')
 
-        #Graph dari seluruh link dibuat
+        all_links = self.get_all_links()
+        self.logger.info("[all link]")
+        self.logger.info(all_links)
+        self.logger.info('')
+
+        # Graph dari seluruh link dibuat
         graph = nx.Graph()
         graph.add_edges_from(all_links)
-	
-
 
         src = '{}.{}'.format(src_port.dpid, src_port.port_no)
         dst = '{}.{}'.format(dst_port.dpid, dst_port.port_no)
-	self.logger.info("[src]{} [dst]{}".format(src,dst))        
-	rute = []
+        self.logger.info("[src]{} [dst]{}".format(src, dst))
+        rute = []
 
-	self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
+        #self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
-	
+
             # Floyd Warshall Algorithm
-            if indikator2 ==1:
-                global indikator2
+            if isCalc == 1:
+                global isCalc
                 global start_time2
                 start_time2 = time.time()
-                indikator2+=1
-                
-                #mengambil path terpendek dengan menggunakan modul networkx
+                isCalc += 1
+
+                # mengambil path terpendek dengan menggunakan modul networkx
                 path, dist = nx.floyd_warshall_predecessor_and_distance(
-                        graph, weight='weight')
+                    graph, weight='weight')
                 a = path[src][dst]
                 rute.append(dst)
                 while (src != a):
@@ -148,17 +151,17 @@ class RouteApp(app_manager.RyuApp):
                 rute.reverse()
                 paths = rute
 
-                #mengembalikan jalur terpendek
+                # mengembalikan jalur terpendek
                 return paths
 
         return None
 
-    #method untuk mendapatkan datapath
+    # method untuk mendapatkan datapath
     def get_dp(self, dpid):
         switch = ryu_api.get_switch(self, dpid)[0]
         return switch.dp
 
-    #method untuk mengirimkan packet out
+    # method untuk mengirimkan packet out
     def packet_out(self, dp, msg, out_port):
         ofproto = dp.ofproto
         actions = [dp.ofproto_parser.OFPActionOutput(out_port)]
@@ -172,7 +175,7 @@ class RouteApp(app_manager.RyuApp):
             actions=actions, data=data)
         dp.send_msg(out)
 
-    #method untuk menginstall jalur berdasarkan jalur yang sudah dicari
+    # method untuk menginstall jalur berdasarkan jalur yang sudah dicari
     def install_path(self, parser, src_ip, dst_ip, path):
         match_ip = parser.OFPMatch(
             eth_type=ether_types.ETH_TYPE_IP,
@@ -197,7 +200,7 @@ class RouteApp(app_manager.RyuApp):
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
         self.logger.info('%s', ev)
-	switches = ryu_api.get_all_switch(self)
+        switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
@@ -205,38 +208,36 @@ class RouteApp(app_manager.RyuApp):
     @set_ev_cls(EventLinkDelete, MAIN_DISPATCHER)
     def link_deletehandler(self, ev):
         self.logger.info('%s', ev)
-	
+
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
-	
 
     def remove_flows(self, datapath, table_id):
         global indikator
         global start_time2
-        indikator=1
+        indikator = 1
         start_time2 = time.time()
         parser = datapath.ofproto_parser
         ofproto = datapath.ofproto
         empty_match = parser.OFPMatch()
         instructions = []
         flow_mod = self.remove_table_flows(datapath, table_id,
-        empty_match, instructions)
-        #print "deleting all flow entries in table ", table_id
+                                           empty_match, instructions)
+        # print "deleting all flow entries in table ", table_id
         datapath.send_msg(flow_mod)
-	
 
     def remove_table_flows(self, datapath, table_id, match, instructions):
-	
+
         ofproto = datapath.ofproto
         flow_mod = datapath.ofproto_parser.OFPFlowMod(datapath, 0, 0, table_id,
-                                                    ofproto.OFPFC_DELETE, 0, 0,
-                                                    1,
-                                                    ofproto.OFPCML_NO_BUFFER,
-                                                    ofproto.OFPP_ANY,
-                                                    ofproto.OFPG_ANY, 0,
-                                                    match, instructions)
+                                                      ofproto.OFPFC_DELETE, 0, 0,
+                                                      1,
+                                                      ofproto.OFPCML_NO_BUFFER,
+                                                      ofproto.OFPP_ANY,
+                                                      ofproto.OFPG_ANY, 0,
+                                                      match, instructions)
         return flow_mod
 
     def install_controller(self, datapath):
@@ -252,18 +253,18 @@ class RouteApp(app_manager.RyuApp):
             command=ofproto.OFPFC_ADD, idle_timeout=0, hard_timeout=0,
             priority=0, instructions=inst)
         datapath.send_msg(mod)
-	
+
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
         datapath = ev.msg.datapath
         self.install_controller(datapath)
-	
-    #method yang dipanggil ketika packet_in 
+
+    # method yang dipanggil ketika packet_in
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
 
         start_time = time.time()
-        
+
         msg = ev.msg
         datapath = msg.datapath
         ofproto = datapath.ofproto
@@ -297,53 +298,54 @@ class RouteApp(app_manager.RyuApp):
             self.mymac[src] = (dpid, in_port)
 
         out_port = ofproto.OFPP_FLOOD
-        
-        if indikator ==1:
+
+        if indikator == 1:
             global indikator
-            
+
             if arp_pkt:
-                
+
                 src_ip = arp_pkt.src_ip
                 dst_ip = arp_pkt.dst_ip
-                
+
                 if dst in self.mymac.keys():
-                
-		        if dst in self.mac_to_port[dpid]:
-		        
-		            self.logger.info('-------------------------------------------------------------------------------')
-		            self.logger.info(
-		                'installing path from {} to {}'.format(src, dst))
-		            
-		            dst_host = self.find_host(dst)
-		            src_host = self.find_host(src)
-		            
 
-		            # calculate shortest path
-		            shortest_path = self.cal_shortest_path(src_host, dst_host)
+                    if dst in self.mac_to_port[dpid]:
 
-		            self.logger.info('Floyd Warshall Algorithm: ')
-		            self.logger.info(shortest_path)
-		            self.logger.info('')
+                        self.logger.info(
+                            '-------------------------------------------------------------------------------')
+                        self.logger.info(
+                            'installing path from {} to {}'.format(src, dst))
 
-		            self.install_path(parser, src_ip, dst_ip, shortest_path[1::2])
+                        dst_host = self.find_host(dst)
+                        src_host = self.find_host(src)
 
-		            # create reverse path
-		            reverse_path = list(reversed(shortest_path))
-		            self.install_path(parser, dst_ip, src_ip, reverse_path[1::2])
-		            self.logger.info(reverse_path)
+                        # calculate shortest path
+                        shortest_path = self.cal_shortest_path(
+                            src_host, dst_host)
 
-		            # packet out this packet
-		            node = shortest_path[1]
-		            dpid = int(node.split('.')[0])
-		            out_port = int(node.split('.')[1])
-		            
+                        self.logger.info('Floyd Warshall Algorithm: ')
+                        self.logger.info(shortest_path)
+                        self.logger.info('')
 
-		            
-		            print("Time", time.time() - start_time2)
-		            self.logger.info('-------------------------------------------------------------------------------')
-		            indikator+=1
-                    
-                    
+                        self.install_path(
+                            parser, src_ip, dst_ip, shortest_path[1::2])
+
+                        # create reverse path
+                        reverse_path = list(reversed(shortest_path))
+                        self.install_path(
+                            parser, dst_ip, src_ip, reverse_path[1::2])
+                        self.logger.info(reverse_path)
+
+                        # packet out this packet
+                        node = shortest_path[1]
+                        dpid = int(node.split('.')[0])
+                        out_port = int(node.split('.')[1])
+
+                        print("Time", time.time() - start_time2)
+                        self.logger.info(
+                            '-------------------------------------------------------------------------------')
+                        indikator += 1
+
         actions = [parser.OFPActionOutput(out_port)]
 
         if out_port != ofproto.OFPP_FLOOD:
@@ -358,8 +360,7 @@ class RouteApp(app_manager.RyuApp):
             datapath=datapath, buffer_id=msg.buffer_id, in_port=in_port,
             actions=actions, data=data)
         datapath.send_msg(out)
-            
-	
+
     def _stat_request(self):
         def send_flow_stats_request(datapath):
             ofp = datapath.ofproto
