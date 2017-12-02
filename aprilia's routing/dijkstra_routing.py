@@ -17,6 +17,8 @@ from ryu.lib.packet import ether_types
 from ryu.topology import api as ryu_api
 from ryu.topology.event import EventLinkAdd, EventLinkDelete
 import networkx as nx
+import psutil
+import os
 import pause
 import time
 import link_cost
@@ -113,6 +115,8 @@ class RouteApp(app_manager.RyuApp):
 
     # method untuk menghitung jarak terpendek
     def cal_shortest_path(self, src_host, dst_host):
+
+        p = psutil.Process(os.getpid())
         src_port = src_host.port
         dst_port = dst_host.port
 
@@ -143,6 +147,9 @@ class RouteApp(app_manager.RyuApp):
                 # mengambil path terpendek dengan menggunakan modul networkx
                 path = nx.dijkstra_path(
                     graph, src, dst)
+
+                self.logger.info("[memory] {}, [cpu] {} ".format(
+                    p.memory_percent(), p.cpu_percent()))
 
                 # mengembalikan jalur terpendek
                 return path
