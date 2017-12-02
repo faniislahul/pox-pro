@@ -222,6 +222,9 @@ class RouteApp(app_manager.RyuApp):
     def remove_flows(self, datapath, table_id):
         global indikator
         global start_time2
+        global indikator2
+        indikator2 = 1
+
         indikator = 1
         start_time2 = time.time()
         parser = datapath.ofproto_parser

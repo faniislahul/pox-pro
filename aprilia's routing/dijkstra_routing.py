@@ -212,8 +212,8 @@ class RouteApp(app_manager.RyuApp):
         global indikator
         global start_time2
         global indikator2
-        indikator = 1
         indikator2 = 1
+        indikator = 1
         start_time2 = time.time()
         parser = datapath.ofproto_parser
         ofproto = datapath.ofproto
