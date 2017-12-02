@@ -7,11 +7,11 @@
 # s3 - s5 = 4
 # s4 - s5 = 5
 
-global link_array[][]
-
 
 def data_link_cost(src, dst):
 
+    # menggunakan dpid sebagai identitas dari switch s1 = 1, s2= 2, dst...
+    # link hanya antar satu switch dengan switch lainnya
     # link_array = {([src],[dst]) = [cost]), .. }
     link_dict = {
         (1, 2): 1,

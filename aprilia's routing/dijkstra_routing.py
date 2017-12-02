@@ -85,7 +85,11 @@ class RouteApp(app_manager.RyuApp):
 
             src = '{}.{}'.format(link.src.dpid, link.src.port_no)
             dst = '{}.{}'.format(link.dst.dpid, link.dst.port_no)
+
+            # membaca cost dari inputan manual
             cst = link_cost.data_link_cost(link.src.dpid, link.dst.dpid)
+
+            # memasukkan cost kedalam weight dari link
             result.append(
                 (src, dst, {'weight': cst}))
 

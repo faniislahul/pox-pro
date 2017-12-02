@@ -17,11 +17,11 @@ from ryu.lib.packet import ether_types
 from ryu.topology import api as ryu_api
 from ryu.topology.event import EventLinkAdd, EventLinkDelete
 import networkx as nx
+import link_cost
 import pause
 import time
-import link_cost
 indikator = 1
-indikator2 = 1
+isCalc = 1
 start_time2 = time.time()
 
 
@@ -36,7 +36,7 @@ class RouteApp(app_manager.RyuApp):
         self.thread = {}
         self.thread['update'] = hub.spawn_after(11, self._stat_request)
 
-    # method untuk menambahkan flow
+     # method untuk menambahkan flow
     def add_flow(self, datapath, match, actions, priority=1, buffer_id=None):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -59,8 +59,8 @@ class RouteApp(app_manager.RyuApp):
                 return host
 
         return None
-
     # method untuk melakukan flooding apabila host yang dituju tidak diketahui
+
     def flood_packet(self, dp, msg):
         ofproto = dp.ofproto
         out_port = ofproto.OFPP_FLOOD
@@ -85,7 +85,11 @@ class RouteApp(app_manager.RyuApp):
 
             src = '{}.{}'.format(link.src.dpid, link.src.port_no)
             dst = '{}.{}'.format(link.dst.dpid, link.dst.port_no)
+
+            # membaca cost dari inputan manual
             cst = link_cost.data_link_cost(link.src.dpid, link.dst.dpid)
+
+            # memasukkan cost kedalam weight dari link
             result.append(
                 (src, dst, {'weight': cst}))
 
@@ -101,10 +105,12 @@ class RouteApp(app_manager.RyuApp):
                     if port != _port:
                         src = '{}.{}'.format(port.dpid, port.port_no)
                         dst = '{}.{}'.format(_port.dpid, _port.port_no)
-                        link_to_add.append((src, dst, {'weight': 1}))
+                        # mengisi weight untuk internal link switch dengan 0
+                        link_to_add.append((src, dst, {'weight': 0}))
 
         # link antar node dan internal switch kemudian dikombinasikan
         result.extend(link_to_add)
+
         return result
 
     # method untuk menghitung jarak terpendek
@@ -126,22 +132,32 @@ class RouteApp(app_manager.RyuApp):
         self.logger.info("[src]{} [dst]{}".format(src, dst))
         rute = []
 
-        self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
+        #self.logger.info('[has path?] {}'.format(nx.has_path(graph, src, dst)))
         if nx.has_path(graph, src, dst):
 
-            # Dijkstra Algorithm
-            if indikator2 == 1:
-                global indikator2
+            # Floyd Warshall Algorithm
+            if isCalc == 1:
+                global isCalc
                 global start_time2
                 start_time2 = time.time()
-                indikator2 += 1
+                isCalc += 1
 
                 # mengambil path terpendek dengan menggunakan modul networkx
-                path = nx.dijkstra_path(
-                    graph, src, dst)
+                path, dist = nx.floyd_warshall_predecessor_and_distance(
+                    graph, weight='weight')
+                a = path[src][dst]
+                rute.append(dst)
+                while (src != a):
+                    rute.append(a)
+                    b = path[src][a]
+                    a = b
+
+                rute.append(src)
+                rute.reverse()
+                paths = rute
 
                 # mengembalikan jalur terpendek
-                return path
+                return paths
 
         return None
 
@@ -188,7 +204,6 @@ class RouteApp(app_manager.RyuApp):
 
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
-
         self.logger.info('%s', ev)
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
@@ -207,9 +222,7 @@ class RouteApp(app_manager.RyuApp):
     def remove_flows(self, datapath, table_id):
         global indikator
         global start_time2
-        global indikator2
         indikator = 1
-        indikator2 = 1
         start_time2 = time.time()
         parser = datapath.ofproto_parser
         ofproto = datapath.ofproto
@@ -311,22 +324,23 @@ class RouteApp(app_manager.RyuApp):
                         dst_host = self.find_host(dst)
                         src_host = self.find_host(src)
 
-                        # menghitung jarak terpendek
+                        # calculate shortest path
                         shortest_path = self.cal_shortest_path(
                             src_host, dst_host)
 
-                        self.logger.info('Dijkstra Algorithm : ')
+                        self.logger.info('Floyd Warshall Algorithm: ')
                         self.logger.info(shortest_path)
                         self.logger.info('')
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])
 
-                        # membuat reverse path bagi packet
+                        # create reverse path
                         reverse_path = list(reversed(shortest_path))
                         self.install_path(
                             parser, dst_ip, src_ip, reverse_path[1::2])
                         self.logger.info(reverse_path)
+
                         # packet out this packet
                         node = shortest_path[1]
                         dpid = int(node.split('.')[0])
