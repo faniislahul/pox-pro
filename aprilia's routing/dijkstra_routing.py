@@ -206,23 +206,29 @@ class RouteApp(app_manager.RyuApp):
         if(_isFirstRun == True):
             _isFirstRun = False
 
+    #method yang dijalankan ketika ada link baru ditambahkan
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
-	start = time.time()
+	    start = time.time()
         self.logger.info('%s', ev)
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
         
+        #mengecek apakah program baru pertama kali dijakan, jika tidak maka recovery akan dijalankan 
         if(_isFirstRun == False):
           
             parser = _parser
+            
+            #mencari jarak terdekat 
             shortest_path = self.cal_shortest_path(
                 _src_host, _dst_host)
             
             self.logger.info("---------------------- Recovery ---------------------")
             self.logger.info(shortest_path)
+
+            #menginstall flow table untuk jalur yang baru
             self.install_path(
                 parser, _src_ip, _dst_ip, shortest_path[1::2])
 
@@ -231,13 +237,14 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                             parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
+	        self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery ---------------------")
             
-    
+     #method yang dijalankan ketika ada link yang hilang
     @set_ev_cls(EventLinkDelete, MAIN_DISPATCHER)
     def link_deletehandler(self, ev):
+        start = time.time()
         self.logger.info('%s', ev)
 
         switches = ryu_api.get_all_switch(self)
@@ -246,13 +253,12 @@ class RouteApp(app_manager.RyuApp):
             self.install_controller(switch.dp)
         
         if(_isFirstRun == False):
-            start = time.time()
             parser = _parser
             shortest_path = self.cal_shortest_path(
                 _src_host, _dst_host)
 
             self.logger.info(
-                "---------------------- Recovery ---------------------")
+                "---------------------- Recovery Start ---------------------")
             self.logger.info(shortest_path)
             self.install_path(
                 parser, _src_ip, _dst_ip, shortest_path[1::2])
@@ -262,9 +268,9 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                 parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
+	        self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
-                "---------------------- Recovery ---------------------")
+                "---------------------- Recovery End---------------------")
 
     def remove_flows(self, datapath, table_id):
         global indikator
@@ -316,7 +322,7 @@ class RouteApp(app_manager.RyuApp):
     # method yang dipanggil ketika packet_in
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
-        
+
 
         start_time = time.time()
 
@@ -360,7 +366,7 @@ class RouteApp(app_manager.RyuApp):
             global _dst_ip
             global _src_host
             global _dst_host
-	    global _parser
+	        global _parser
             
             if arp_pkt:
 
@@ -392,7 +398,7 @@ class RouteApp(app_manager.RyuApp):
                         _dst_ip = dst_ip
                         _src_host = src_host
                         _dst_host = dst_host
-			_parser = parser
+			            _parser = parser
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])

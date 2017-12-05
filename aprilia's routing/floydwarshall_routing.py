@@ -23,7 +23,12 @@ import time
 indikator = 1
 isCalc = 1
 start_time2 = time.time()
-
+_src_ip = ''
+_dst_ip = ''
+_src_host = ''
+_dst_host = ''
+_parser = ''
+_isFirstRun = True
 
 class RouteApp(app_manager.RyuApp):
 
@@ -201,23 +206,69 @@ class RouteApp(app_manager.RyuApp):
             self.add_flow(dp, match_ip, actions)
             self.add_flow(dp, match_arp, actions)
         self.installing = False
+        if(_isFirstRun == True):
+            _isFirstRun = False
 
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
+        start = time.time()
         self.logger.info('%s', ev)
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
+        
+        if(_isFirstRun == False):
+            
+            parser = _parser
+            shortest_path = self.cal_shortest_path(
+                _src_host, _dst_host)
+
+            self.logger.info(
+                "---------------------- Recovery Start ---------------------")
+            self.logger.info(shortest_path)
+            self.install_path(
+                parser, _src_ip, _dst_ip, shortest_path[1::2])
+
+            # membuat reverse path bagi packet
+            reverse_path = list(reversed(shortest_path))
+            self.install_path(
+                parser, _dst_ip, _src_ip, reverse_path[1::2])
+            self.logger.info(reverse_path)
+	        self.logger.info("Recovery Time " + (time.time() - start).__str__())
+            self.logger.info(
+                "---------------------- Recovery End---------------------")
 
     @set_ev_cls(EventLinkDelete, MAIN_DISPATCHER)
     def link_deletehandler(self, ev):
+        start = time.time()
         self.logger.info('%s', ev)
 
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
+        
+        if(_isFirstRun == False):
+            
+            parser = _parser
+            shortest_path = self.cal_shortest_path(
+                _src_host, _dst_host)
+
+            self.logger.info(
+                "---------------------- Recovery Start ---------------------")
+            self.logger.info(shortest_path)
+            self.install_path(
+                parser, _src_ip, _dst_ip, shortest_path[1::2])
+
+            # membuat reverse path bagi packet
+            reverse_path = list(reversed(shortest_path))
+            self.install_path(
+                parser, _dst_ip, _src_ip, reverse_path[1::2])
+            self.logger.info(reverse_path)
+	        self.logger.info("Recovery Time " + (time.time() - start).__str__())
+            self.logger.info(
+                "---------------------- Recovery End---------------------")
 
     def remove_flows(self, datapath, table_id):
         global indikator
@@ -308,6 +359,11 @@ class RouteApp(app_manager.RyuApp):
 
         if indikator == 1:
             global indikator
+            global _src_ip
+            global _dst_ip
+            global _src_host
+            global _dst_host
+	        global _parser
 
             if arp_pkt:
 
@@ -333,6 +389,14 @@ class RouteApp(app_manager.RyuApp):
                         self.logger.info('Floyd Warshall Algorithm: ')
                         self.logger.info(shortest_path)
                         self.logger.info('')
+
+                        #menyimpan src dan dst ke variable global
+                        _src_ip = src_ip
+                        _dst_ip = dst_ip
+                        _src_host = src_host
+                        _dst_host = dst_host
+			            _parser = parser
+
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])
