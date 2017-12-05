@@ -27,8 +27,9 @@ indikator2 = 1
 start_time2 = time.time()
 _src_ip = ''
 _dst_ip = ''
-_src_host = null
-_dst_host = null
+_src_host = ''
+_dst_host = ''
+_parser = ''
 _isFirstRun = True
 
 class RouteApp(app_manager.RyuApp):
@@ -207,7 +208,7 @@ class RouteApp(app_manager.RyuApp):
 
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
-
+	start = time.time()
         self.logger.info('%s', ev)
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
@@ -215,23 +216,22 @@ class RouteApp(app_manager.RyuApp):
             self.install_controller(switch.dp)
         
         if(_isFirstRun == False):
-            msg = ev.msg
-            datapath = msg.datapath
-            ofproto = datapath.ofproto
-            parser = datapath.ofproto_parser
+          
+            parser = _parser
             shortest_path = self.cal_shortest_path(
                 _src_host, _dst_host)
             
             self.logger.info("---------------------- Recovery ---------------------")
             self.logger.info(shortest_path)
             self.install_path(
-                parser, src_ip, dst_ip, shortest_path[1::2])
+                parser, _src_ip, _dst_ip, shortest_path[1::2])
 
             # membuat reverse path bagi packet
             reverse_path = list(reversed(shortest_path))
             self.install_path(
-                            parser, dst_ip, src_ip, reverse_path[1::2])
+                            parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
+	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery ---------------------")
             
@@ -246,10 +246,8 @@ class RouteApp(app_manager.RyuApp):
             self.install_controller(switch.dp)
         
         if(_isFirstRun == False):
-            msg = ev.msg
-            datapath = msg.datapath
-            ofproto = datapath.ofproto
-            parser = datapath.ofproto_parser
+            start = time.time()
+            parser = _parser
             shortest_path = self.cal_shortest_path(
                 _src_host, _dst_host)
 
@@ -257,13 +255,14 @@ class RouteApp(app_manager.RyuApp):
                 "---------------------- Recovery ---------------------")
             self.logger.info(shortest_path)
             self.install_path(
-                parser, src_ip, dst_ip, shortest_path[1::2])
+                parser, _src_ip, _dst_ip, shortest_path[1::2])
 
             # membuat reverse path bagi packet
             reverse_path = list(reversed(shortest_path))
             self.install_path(
-                parser, dst_ip, src_ip, reverse_path[1::2])
+                parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
+	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery ---------------------")
 
@@ -361,6 +360,7 @@ class RouteApp(app_manager.RyuApp):
             global _dst_ip
             global _src_host
             global _dst_host
+	    global _parser
             
             if arp_pkt:
 
@@ -392,6 +392,7 @@ class RouteApp(app_manager.RyuApp):
                         _dst_ip = dst_ip
                         _src_host = src_host
                         _dst_host = dst_host
+			_parser = parser
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])
