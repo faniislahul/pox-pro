@@ -25,7 +25,11 @@ import link_cost
 indikator = 1
 indikator2 = 1
 start_time2 = time.time()
-
+_src_ip = ''
+_dst_ip = ''
+_src_host = null
+_dst_host = null
+_isFirstRun = True
 
 class RouteApp(app_manager.RyuApp):
 
@@ -177,6 +181,7 @@ class RouteApp(app_manager.RyuApp):
 
     # method untuk menginstall jalur berdasarkan jalur yang sudah dicari
     def install_path(self, parser, src_ip, dst_ip, path):
+        global _isFirstRun
         match_ip = parser.OFPMatch(
             eth_type=ether_types.ETH_TYPE_IP,
             ipv4_src=src_ip,
@@ -197,6 +202,9 @@ class RouteApp(app_manager.RyuApp):
             self.add_flow(dp, match_arp, actions)
         self.installing = False
 
+        if(_isFirstRun == True):
+            _isFirstRun = False
+
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
 
@@ -205,7 +213,29 @@ class RouteApp(app_manager.RyuApp):
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
+        
+        if(_isFirstRun == False):
+            msg = ev.msg
+            datapath = msg.datapath
+            ofproto = datapath.ofproto
+            parser = datapath.ofproto_parser
+            shortest_path = self.cal_shortest_path(
+                _src_host, _dst_host)
+            
+            self.logger.info("---------------------- Recovery ---------------------")
+            self.logger.info(shortest_path)
+            self.install_path(
+                parser, src_ip, dst_ip, shortest_path[1::2])
 
+            # membuat reverse path bagi packet
+            reverse_path = list(reversed(shortest_path))
+            self.install_path(
+                            parser, dst_ip, src_ip, reverse_path[1::2])
+            self.logger.info(reverse_path)
+            self.logger.info(
+                "---------------------- Recovery ---------------------")
+            
+    
     @set_ev_cls(EventLinkDelete, MAIN_DISPATCHER)
     def link_deletehandler(self, ev):
         self.logger.info('%s', ev)
@@ -214,6 +244,28 @@ class RouteApp(app_manager.RyuApp):
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
+        
+        if(_isFirstRun == False):
+            msg = ev.msg
+            datapath = msg.datapath
+            ofproto = datapath.ofproto
+            parser = datapath.ofproto_parser
+            shortest_path = self.cal_shortest_path(
+                _src_host, _dst_host)
+
+            self.logger.info(
+                "---------------------- Recovery ---------------------")
+            self.logger.info(shortest_path)
+            self.install_path(
+                parser, src_ip, dst_ip, shortest_path[1::2])
+
+            # membuat reverse path bagi packet
+            reverse_path = list(reversed(shortest_path))
+            self.install_path(
+                parser, dst_ip, src_ip, reverse_path[1::2])
+            self.logger.info(reverse_path)
+            self.logger.info(
+                "---------------------- Recovery ---------------------")
 
     def remove_flows(self, datapath, table_id):
         global indikator
@@ -265,6 +317,7 @@ class RouteApp(app_manager.RyuApp):
     # method yang dipanggil ketika packet_in
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
+        
 
         start_time = time.time()
 
@@ -304,7 +357,11 @@ class RouteApp(app_manager.RyuApp):
 
         if indikator == 1:
             global indikator
-
+            global _src_ip
+            global _dst_ip
+            global _src_host
+            global _dst_host
+            
             if arp_pkt:
 
                 src_ip = arp_pkt.src_ip
@@ -329,6 +386,12 @@ class RouteApp(app_manager.RyuApp):
                         self.logger.info('Dijkstra Algorithm : ')
                         self.logger.info(shortest_path)
                         self.logger.info('')
+
+                        #menyimpan src dan dst ke variable global
+                        _src_ip = src_ip
+                        _dst_ip = dst_ip
+                        _src_host = src_host
+                        _dst_host = dst_host
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])
