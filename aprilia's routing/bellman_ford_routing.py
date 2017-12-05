@@ -161,6 +161,7 @@ class RouteApp(app_manager.RyuApp):
         dp.send_msg(out)
 
     def install_path(self, parser, src_ip, dst_ip, path):
+	global _isFirstRun
         match_ip = parser.OFPMatch(
             eth_type=ether_types.ETH_TYPE_IP,
             ipv4_src=src_ip,
@@ -191,7 +192,7 @@ class RouteApp(app_manager.RyuApp):
         for switch in switches:
             [self.remove_flows(switch.dp, n) for n in [0, 1]]
             self.install_controller(switch.dp)
-
+	
         if(_isFirstRun == False):
             parser = _parser
             shortest_path = self.cal_shortest_path(
@@ -208,7 +209,7 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                 parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	        self.logger.info("Recovery Time " + (time.time() - start).__str__())
+	    self.logger.info("Recovery Time " + (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery End---------------------")
 
@@ -238,7 +239,7 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                 parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	        self.logger.info("Recovery Time " + (time.time() - start).__str__())
+	    self.logger.info("Recovery Time " + (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery End---------------------")
 
@@ -334,7 +335,7 @@ class RouteApp(app_manager.RyuApp):
             global _dst_ip
             global _src_host
             global _dst_host
-	        global _parser
+	    global _parser
 
             if arp_pkt:
 
@@ -366,7 +367,7 @@ class RouteApp(app_manager.RyuApp):
                         _dst_ip = dst_ip
                         _src_host = src_host
                         _dst_host = dst_host
-			            _parser = parser
+			_parser = parser
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])

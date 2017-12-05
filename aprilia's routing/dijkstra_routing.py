@@ -209,7 +209,7 @@ class RouteApp(app_manager.RyuApp):
     #method yang dijalankan ketika ada link baru ditambahkan
     @set_ev_cls(EventLinkAdd, MAIN_DISPATCHER)
     def link_addhandler(self, ev):
-	    start = time.time()
+	start = time.time()
         self.logger.info('%s', ev)
         switches = ryu_api.get_all_switch(self)
         for switch in switches:
@@ -237,7 +237,7 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                             parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	        self.logger.info("Recovery Time "+ (time.time() - start).__str__())
+	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery ---------------------")
             
@@ -268,7 +268,7 @@ class RouteApp(app_manager.RyuApp):
             self.install_path(
                 parser, _dst_ip, _src_ip, reverse_path[1::2])
             self.logger.info(reverse_path)
-	        self.logger.info("Recovery Time "+ (time.time() - start).__str__())
+	    self.logger.info("Recovery Time "+ (time.time() - start).__str__())
             self.logger.info(
                 "---------------------- Recovery End---------------------")
 
@@ -366,7 +366,7 @@ class RouteApp(app_manager.RyuApp):
             global _dst_ip
             global _src_host
             global _dst_host
-	        global _parser
+	    global _parser
             
             if arp_pkt:
 
@@ -398,7 +398,7 @@ class RouteApp(app_manager.RyuApp):
                         _dst_ip = dst_ip
                         _src_host = src_host
                         _dst_host = dst_host
-			            _parser = parser
+			_parser = parser
 
                         self.install_path(
                             parser, src_ip, dst_ip, shortest_path[1::2])
